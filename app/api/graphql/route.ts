@@ -39,7 +39,6 @@ const resolvers = {
       try {
         const result = await pool.query('SELECT * FROM siswa');
         
-        // Memetakan hasil database agar cocok dengan skema GraphQL, mencegah error null
         return result.rows.map((row) => ({
           id: row.id || row.id_siswa || row.ID,
           nama_lengkap: row.nama_lengkap || row.nama,
@@ -53,16 +52,17 @@ const resolvers = {
     daftar_nilai: async (parent: { id: string }) => {
       try {
         const result = await pool.query(
-          'SELECT * FROM nilai WHERE id_siswa = $1',
+          'SELECT * FROM nilai WHERE id_siswa = $1', // Pastikan id_siswa ini sudah benar seperti perbaikan sebelumnya
           [parent.id]
         );
         
-        // Memetakan relasi nilai
+        // Memetakan relasi nilai dengan Jaring Pengaman (Fallback)
         return result.rows.map((row) => ({
           id: row.id || row.id_nilai || row.ID,
-          skor: row.skor,
-          semester: row.semester,
-          mata_pelajaran: row.mata_pelajaran,
+          skor: row.skor || row.nilai || 0, 
+          semester: row.semester || 0,
+          // Jika nama kolom bukan mata_pelajaran, ia akan mencoba membaca 'mapel'. Jika gagal juga, akan muncul teks peringatan.
+          mata_pelajaran: row.mata_pelajaran || row.mapel || row.nama_pelajaran || "Cek Nama Kolom di Neon!",
         }));
       } catch (error) {
         throw new Error('Gagal mengambil relasi nilai: ' + error);
