@@ -32,13 +32,18 @@ const typeDefs = `#graphql
   }
 `;
 
-// 3. Definisi Resolvers (Penanganan Query & Nested Relation)
+// 3. Definisi Resolvers (Penanganan Query & Mapping Data)
 const resolvers = {
   Query: {
     semua_siswa: async () => {
       try {
         const result = await pool.query('SELECT * FROM siswa');
-        return result.rows;
+        
+        // Memetakan hasil database agar cocok dengan skema GraphQL, mencegah error null
+        return result.rows.map((row) => ({
+          id: row.id || row.id_siswa || row.ID,
+          nama_lengkap: row.nama_lengkap || row.nama,
+        }));
       } catch (error) {
         throw new Error('Gagal mengambil data siswa: ' + error);
       }
@@ -51,7 +56,14 @@ const resolvers = {
           'SELECT * FROM nilai WHERE siswa_id = $1',
           [parent.id]
         );
-        return result.rows;
+        
+        // Memetakan relasi nilai
+        return result.rows.map((row) => ({
+          id: row.id || row.id_nilai || row.ID,
+          skor: row.skor,
+          semester: row.semester,
+          mata_pelajaran: row.mata_pelajaran,
+        }));
       } catch (error) {
         throw new Error('Gagal mengambil relasi nilai: ' + error);
       }
