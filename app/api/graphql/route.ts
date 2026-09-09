@@ -53,7 +53,7 @@ const resolvers = {
     daftar_nilai: async (parent: { id: string }) => {
       try {
         const result = await pool.query(
-          'SELECT * FROM nilai WHERE siswa_id = $1',
+          'SELECT * FROM nilai WHERE id_siswa = $1',
           [parent.id]
         );
         
