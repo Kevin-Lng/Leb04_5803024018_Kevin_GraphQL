@@ -95,11 +95,17 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  introspection: true, // WAJIB TRUE AGAR BISA DIBUKA DOSEN DI SANDBOX
+  introspection: true,
 });
 
-// 5. Membungkus Server agar cocok dengan Next.js App Router
+// 5. Membungkus Server agar cocok dengan Next.js App Router secara eksplisit
 const handler = startServerAndCreateNextHandler<NextRequest>(server);
 
-// Mengekspor metode GET dan POST agar bisa menerima request GraphQL
-export { handler as GET, handler as POST };
+// Memaksa tipe data handler agar dikenali murni sebagai fungsi GET dan POST App Router
+export async function GET(request: NextRequest) {
+  return handler(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handler(request);
+}
