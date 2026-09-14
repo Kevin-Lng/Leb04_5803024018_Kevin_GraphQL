@@ -62,7 +62,7 @@ const resolvers = {
           skor: row.skor || row.nilai || 0, 
           semester: row.semester || 0,
           // Jika nama kolom bukan mata_pelajaran, ia akan mencoba membaca 'mapel'. Jika gagal juga, akan muncul teks peringatan.
-          mata_pelajaran: row.mata_pelajaran || row.mapel || row.nama_pelajaran || "Cek Nama Kolom di Neon!",
+          mata_pelajaran: row.mata_kuliah || row.mapel || row.nama_pelajaran || "Cek Nama Kolom di Neon!",
         }));
       } catch (error) {
         throw new Error('Gagal mengambil relasi nilai: ' + error);
