@@ -23,7 +23,7 @@ const typeDefs = `#graphql
   type Nilai {
     id: ID!
     skor: Float!
-    semester: Int!
+    semester: String!
     mata_pelajaran: String!
   }
 
