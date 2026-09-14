@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { Pool } from 'pg';
 
-// 1. Konfigurasi Koneksi Database Neon PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -12,11 +11,16 @@ const pool = new Pool({
   },
 });
 
-// 2. Definisi Skema GraphQL (TypeDefs)
+// 1. SYARAT TUGAS: Variabel counter di luar resolver
+let resolverCallCount = 0;
+
 const typeDefs = `#graphql
   type Siswa {
     id: ID!
+    nis: String!
     nama_lengkap: String!
+    tanggal_lahir: String!
+    tingkat_kelas: Int!
     daftar_nilai: [Nilai!]
   }
 
@@ -32,50 +36,48 @@ const typeDefs = `#graphql
   }
 `;
 
-// 3. Definisi Resolvers (Penanganan Query & Mapping Data)
 const resolvers = {
   Query: {
     semua_siswa: async () => {
-      try {
-        const result = await pool.query('SELECT * FROM siswa');
-        
-        return result.rows.map((row) => ({
-          id: row.id || row.id_siswa || row.ID,
-          nama_lengkap: row.nama_lengkap || row.nama,
-        }));
-      } catch (error) {
-        throw new Error('Gagal mengambil data siswa: ' + error);
-      }
+      resolverCallCount = 0; // Reset counter setiap query baru
+      console.log("=== [BUKTI N+1] 1 QUERY UTAMA DIJALANKAN (Ambil Semua Siswa) ===");
+      
+      const result = await pool.query('SELECT * FROM siswa ORDER BY id_siswa ASC');
+      return result.rows.map((row) => ({
+        id: row.id_siswa,
+        nis: row.nis,
+        nama_lengkap: row.nama_lengkap,
+        tanggal_lahir: row.tanggal_lahir instanceof Date ? row.tanggal_lahir.toISOString().split('T')[0] : row.tanggal_lahir,
+        tingkat_kelas: row.tingkat_kelas,
+      }));
     },
   },
   Siswa: {
     daftar_nilai: async (parent: { id: string }) => {
-      try {
-        // PERBAIKAN FINAL: Gunakan SQL JOIN untuk menyatukan tabel nilai dan mata_pelajaran
-        const result = await pool.query(
-          `SELECT nilai.*, mata_pelajaran.nama_mapel 
-           FROM nilai 
-           JOIN mata_pelajaran ON nilai.id_mapel = mata_pelajaran.id_mapel 
-           WHERE nilai.id_siswa = $1`,
-          [parent.id]
-        );
-        
-        return result.rows.map((row) => ({
-          id: row.id || row.id_nilai || row.ID,
-          skor: parseFloat(row.skor) || parseFloat(row.nilai) || 0,
-          semester: row.semester || "Tidak diketahui", 
-          
-          // Karena sudah di-JOIN, sekarang kita bisa langsung memanggil kolom aslinya!
-          mata_pelajaran: row.nama_mapel,
-        }));
-      } catch (error) {
-        throw new Error('Gagal mengambil relasi nilai: ' + error);
-      }
+      // 2. SYARAT TUGAS: Increment counter setiap kali resolver dipanggil
+      resolverCallCount++;
+      
+      // 3. SYARAT TUGAS: Tampilkan nilainya lewat console.log
+      console.log(`-> [BUKTI N+1] Resolver relasi dipanggil! (Panggilan ke-${resolverCallCount} untuk Siswa ID: ${parent.id})`);
+
+      const result = await pool.query(
+        `SELECT n.id_nilai, n.skor, n.semester, m.nama_mapel 
+         FROM nilai n
+         JOIN mata_pelajaran m ON n.id_mapel = m.id_mapel 
+         WHERE n.id_siswa = $1`,
+        [parent.id]
+      );
+      
+      return result.rows.map((row) => ({
+        id: row.id_nilai,
+        skor: parseFloat(row.skor) || 0,
+        semester: row.semester,
+        mata_pelajaran: row.nama_mapel,
+      }));
     },
   },
 };
 
-// 4. Inisialisasi Server Apollo dengan Plugin Sandbox
 const server = new ApolloServer({
   typeDefs,
   resolvers,
@@ -85,7 +87,6 @@ const server = new ApolloServer({
   ],
 });
 
-// 5. Handler untuk Next.js App Router
 const handler = startServerAndCreateNextHandler<NextRequest>(server);
 
 export async function GET(request: NextRequest) {
