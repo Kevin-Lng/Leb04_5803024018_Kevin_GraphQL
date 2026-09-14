@@ -51,18 +51,22 @@ const resolvers = {
   Siswa: {
     daftar_nilai: async (parent: { id: string }) => {
       try {
+        // PERBAIKAN FINAL: Gunakan SQL JOIN untuk menyatukan tabel nilai dan mata_pelajaran
         const result = await pool.query(
-          'SELECT * FROM nilai WHERE id_siswa = $1', // Pastikan id_siswa ini sudah benar seperti perbaikan sebelumnya
+          `SELECT nilai.*, mata_pelajaran.nama_mapel 
+           FROM nilai 
+           JOIN mata_pelajaran ON nilai.id_mapel = mata_pelajaran.id_mapel 
+           WHERE nilai.id_siswa = $1`,
           [parent.id]
         );
         
-        // Memetakan relasi nilai dengan Jaring Pengaman (Fallback)
         return result.rows.map((row) => ({
           id: row.id || row.id_nilai || row.ID,
-          skor: row.skor || row.nilai || 0, 
-          semester: row.semester || 0,
-          // Jika nama kolom bukan mata_pelajaran, ia akan mencoba membaca 'mapel'. Jika gagal juga, akan muncul teks peringatan.
-          mata_pelajaran: row.mata_kuliah || row.mapel || row.nama_pelajaran || "Cek Nama Kolom di Neon!",
+          skor: parseFloat(row.skor) || parseFloat(row.nilai) || 0,
+          semester: row.semester || "Tidak diketahui", 
+          
+          // Karena sudah di-JOIN, sekarang kita bisa langsung memanggil kolom aslinya!
+          mata_pelajaran: row.nama_mapel,
         }));
       } catch (error) {
         throw new Error('Gagal mengambil relasi nilai: ' + error);
