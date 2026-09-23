@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+// Entitas utama yang diadaptasi dari project GraphQL
+message Siswa {
+  string id = 1;
+  string nis = 2;
+  string nama_lengkap = 3;
+  string tanggal_lahir = 4;
+  int32 tingkat_kelas = 5;
+}
+
+// Parameter request untuk mencari siswa berdasarkan ID
+message GetSiswaRequest {
+  string id = 1;
+}
+
+// Service utama dengan satu metode (Unary RPC)
+service SiswaService {
+  rpc GetSiswa(GetSiswaRequest) returns (Siswa);
+}
