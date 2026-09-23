@@ -9,8 +9,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Memuat file siswa.proto
-const packageDef = protoLoader.loadSync('./proto/siswa.proto', {});
+// Memuat file siswa.proto dengan keepCase: true agar format penulisan tidak diubah
+const packageDef = protoLoader.loadSync('./proto/siswa.proto', {
+  keepCase: true 
+});
 const proto = grpc.loadPackageDefinition(packageDef);
 const server = new grpc.Server();
 
@@ -37,6 +39,7 @@ server.addService(proto.SiswaService.service, {
         ? row.tanggal_lahir.toISOString().split('T')[0] 
         : row.tanggal_lahir;
 
+      // Kunci data sekarang akan terbaca dengan tepat oleh gRPC
       callback(null, { 
         id: row.id_siswa.toString(), 
         nis: row.nis, 
