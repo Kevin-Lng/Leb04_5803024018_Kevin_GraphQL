@@ -3,6 +3,7 @@ import { startServerAndCreateNextHandler } from '@as-integrations/next';
 import { NextRequest } from 'next/server';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { Pool } from 'pg';
+import jwt from 'jsonwebtoken';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -109,8 +110,10 @@ const resolvers = {
     },
   },
   Mutation: {
-    // CREATE
-    createSiswa: async (_: any, { input }: any) => {
+    // CREATE (Dilindungi JWT)
+    createSiswa: async (_: any, { input }: any, context: any) => {
+      if (!context.user) throw new Error('Unauthorized: silakan login menggunakan GitHub terlebih dahulu');
+
       const { nis, nama_lengkap, tanggal_lahir, tingkat_kelas } = input;
       const result = await pool.query(
         `INSERT INTO siswa (nis, nama_lengkap, tanggal_lahir, tingkat_kelas) 
@@ -126,8 +129,10 @@ const resolvers = {
         tingkat_kelas: row.tingkat_kelas,
       };
     },
-    // UPDATE menggunakan COALESCE sesuai modul dosen
-    updateSiswa: async (_: any, { id, input }: any) => {
+    // UPDATE (Dilindungi JWT)
+    updateSiswa: async (_: any, { id, input }: any, context: any) => {
+      if (!context.user) throw new Error('Unauthorized: silakan login menggunakan GitHub terlebih dahulu');
+
       const { nis, nama_lengkap, tanggal_lahir, tingkat_kelas } = input;
       const result = await pool.query(
         `UPDATE siswa 
@@ -148,8 +153,10 @@ const resolvers = {
         tingkat_kelas: row.tingkat_kelas,
       };
     },
-    // DELETE
-    deleteSiswa: async (_: any, { id }: { id: string }) => {
+    // DELETE (Dilindungi JWT)
+    deleteSiswa: async (_: any, { id }: { id: string }, context: any) => {
+      if (!context.user) throw new Error('Unauthorized: silakan login menggunakan GitHub terlebih dahulu');
+
       await pool.query('DELETE FROM nilai WHERE id_siswa = $1', [id]);
       const result = await pool.query('DELETE FROM siswa WHERE id_siswa = $1', [id]);
       return (result.rowCount ?? 0) > 0;
@@ -166,7 +173,20 @@ const server = new ApolloServer({
   ],
 });
 
-const handler = startServerAndCreateNextHandler<NextRequest>(server);
+const handler = startServerAndCreateNextHandler<NextRequest>(server, {
+  // Mengekstrak dan memverifikasi token JWT dari Header Authorization
+  context: async (req: NextRequest) => {
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.replace('Bearer ', '');
+    
+    try {
+      const user = jwt.verify(token, process.env.JWT_SECRET as string);
+      return { user };
+    } catch {
+      return { user: null };
+    }
+  },
+});
 
 export async function GET(request: NextRequest) {
   return handler(request);
